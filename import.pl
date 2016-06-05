@@ -5,6 +5,13 @@ use warnings;
 use Getopt::Long ();
 use DBI ();
 use Data::Dumper qw(Dumper);
+use lib 'lib';
+use JC::ULS::Table ();
+
+use constant {
+	TDEF => { },	# table defs, created by populate_tdef()
+	TABLES => [],	# table object storage
+};
 
 main(\@ARGV);
 exit(0);
@@ -13,27 +20,27 @@ sub main {
 	my $argv = shift; # \@ARGV
 	my %Opts;
 
-	my @tables = qw(hd am en);
+	# Populate TDEF constant hashref:
+	populate_tdef();
+
+	# Build source file options from TDEF keys:
+	my $tdef = TDEF(); # constant %$TDEF
+	my %tdef_opts;
+	for (keys %$tdef ) {
+		$tdef_opts{"${_}=s"} = \&opt_table;
+	}
 
 	Getopt::Long::GetOptionsFromArray( $argv,
 		'schema|s=s' => \$Opts{schema},
 		'indexes|i=s' => \$Opts{indexes},
 		'db|database|d=s' => \$Opts{db},
-		'hd=s' => \$Opts{hd},
-		'am=s' => \$Opts{am},
-		'en=s' => \$Opts{en},
+		%tdef_opts,
 	) or die "Options error";
 
 	# Mandatory options:
 	for (qw<db schema indexes>) {
 		next if (defined $Opts{$_});
 		die "Unspecified mandatory option: $_";
-	}
-
-	# Warn when skipping import tables:
-	for (@tables) {
-		next if (defined $Opts{$_});
-		printf(STDERR "Omitting table %s\n", uc($_) );
 	}
 
 	# Read in full indexes file, for use when we're done:
@@ -44,22 +51,28 @@ sub main {
 	# Create a new $dbh handle, w/ fresh schema:
 	my $dbh = mk_db(db=>$Opts{db}, schema=>$Opts{schema});
 
-	my $imports = import_hr(dbh=>$dbh);
+	my $tables = TABLES(); # constant @$tables
+
+	# Prepare all table queries:
+	for my $table (@$tables) {
+		my $rc = $table->prepare(dbh=>$dbh);
+		if (not $rc) {
+			die sprintf("Table %s prepare failed: %s",
+					$table->get('name'),
+					$table->error
+			);
+		}
+	}
 
 	# Perform table imports:
-	for my $table (@tables) {
-		# Skip tables for which there is no input:
-		next if (not defined $Opts{$table});
-
-		# Run the import:
-		table_import(
-			src_file => $Opts{$table},
-			date_conv => $imports->{$table}{date_conv} // [],
-			cols => $imports->{$table}{cols},
-			dbh => $dbh,
-			sth => $imports->{$table}{insert},
-			table => $table,
-		);
+	for my $table (@$tables) {
+		my $rc = $table->import(dbh=>$dbh);
+		if (not $rc) {
+			die sprintf("Table %s import failed: %s",
+					$table->get('name'),
+					$table->error
+			);
+		}
 	}
 
 	# Finish, setting DB tunables for normal use:
@@ -138,150 +151,92 @@ sub finish_db {
 	print(STDERR "\n");
 }
 
-sub table_import {
-	my %args = (
-		date_conv => [],
-		@_
-	);
+sub opt_table {
+	my ($opt, $src) = (@_);
 
-	my $dbh = $args{dbh};			# dbh handle
-	my $sth = $args{sth};			# insert SQL statement handle
-	my $src_file = $args{src_file};		# source input file
-	my $date_conv = $args{date_conv};	# array-ref of US-to-ISO date indexes
-	my $cols = $args{cols};			# array-ref of insert column indexes
-	my $table = $args{table};		# short name of table (for display)
+	my $table = JC::ULS::Table->new;
+	my $tdef = TDEF();	# constant %$tdef
+	my $tables = TABLES();	# constant @$tables
 
-	open(my $fh, '<', $src_file)
-		or die "Open '$src_file' failed: $!";
+	$table->define(
+		name => uc($opt),
+		source => $src,
+		fields => $tdef->{$opt}{fields},
+		date_fields => $tdef->{$opt}{date_fields} // [],
+		query => $tdef->{$opt}{query},
+	) or die "Table $opt failed: " . $table->error;
 
-	printf(STDERR "Importing table %s: ", uc($table) );
-
-	# Process lines:
-	while (my $line = <$fh>) {
-		# Extract fields from record input:
-		chomp $line;
-		my @fields = split(/\|/, $line);
-
-		# Set empty records to undef (SQL NULL):
-		for (\(@fields)) {
-			$$_ = undef if ( length($$_) == 0 );
-		}
-
-		# Normalize date:
-		for (@$date_conv) {
-			next if (not defined $fields[$_]);
-			date_to_iso( \$fields[$_] );
-		}
-
-		# Extract columns of interest:
-		my @row = @fields[@$cols];
-
-		# Insert:
-		eval {
-			$sth->execute( (@row) );
-		};
-		if ($@) {
-			print Dumper( \@row );
-			$dbh->commit;
-			die "$@";
-		}
-	}
-	continue {
-		if ($. % 100000 == 0) {
-			$dbh->commit;
-			printf(STDERR "%dk.. ", $. / 1000);
-		}
-	}
-
-	printf(STDERR "%d.\n", $.);
-
-	close($fh);
-	$dbh->commit;
+	push @$tables, $table;
 }
 
-sub import_hr {
-	my %args = (@_);
-	my $dbh = $args{dbh};
+sub populate_tdef {
+	my $tdef = TDEF();
 
-	return {
-		hd => {
-			date_conv => [ 7..9, 42..43 ],
-			cols => [ 1..2, 4..9, 42..43 ],
-			insert => $dbh->prepare(qq[
-				INSERT INTO t_hd (
-					sys_id,
-					uls_fileno,
-					callsign,
-					license_status,
-					service_code,
-					grant_date,
-					expired_date,
-					canceled_date,
-					effective_date,
-					last_action_date
-				)
-				VALUES (?,?,?,?,?,?,?,?,?,?)
-			]),
-		},
-		am => {
-			cols => [ 1..2, 4..9, 12..13, 15..17 ],
-			insert => $dbh->prepare(qq[
-				INSERT INTO t_am (
-					sys_id,
-					uls_fileno,
-					callsign,
-					op_class,
-					group_code,
-					region_code,
-					trustee_callsign,
-					trustee_indicator,
-					sys_call_change,
-					vanity_call_change,
-					previous_callsign,
-					previous_op_class,
-					trustee_name
-				)
-				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-			]),
-		},
-		en => {
-			cols => [ 1..2, 4..11, 15..20, 22..23 ],
-			insert => $dbh->prepare(qq[
-				INSERT INTO t_en (
-					sys_id,
-					uls_fileno,
-					callsign,
-					entity_type,
-					license_id,
-					entity_name,
-					first_name,
-					mi,
-					last_name,
-					suffix,
-					street,
-					city,
-					state,
-					zip_code,
-					po_box,
-					attn,
-					frn,
-					type_code
-				)
-				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-			]),
-		},
+	$tdef->{hd} = {
+		date_fields => [ 7..9, 42..43 ],
+		fields => [ 1..2, 4..9, 42..43 ],
+		query => qq[
+			INSERT INTO t_hd (
+				sys_id,
+				uls_fileno,
+				callsign,
+				license_status,
+				service_code,
+				grant_date,
+				expired_date,
+				canceled_date,
+				effective_date,
+				last_action_date
+			)
+			VALUES (?,?,?,?,?,?,?,?,?,?)
+		],
 	};
-}
-
-sub date_to_iso {
-	my $date = shift; # \$date_string, MM/DD/YYYY
-
-	my @split = split(/\//, $$date);
-	die "date_to_iso failure on: $$date" if (scalar(@split) != 3);
-	$$date = sprintf('%s-%s-%s',
-			$split[2],
-			$split[0],
-			$split[1],
-	);
+	$tdef->{am} = {
+		fields => [ 1..2, 4..9, 12..13, 15..17 ],
+		query => qq[
+			INSERT INTO t_am (
+				sys_id,
+				uls_fileno,
+				callsign,
+				op_class,
+				group_code,
+				region_code,
+				trustee_callsign,
+				trustee_indicator,
+				sys_call_change,
+				vanity_call_change,
+				previous_callsign,
+				previous_op_class,
+				trustee_name
+			)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+		],
+	};
+	$tdef->{en} = {
+		fields => [ 1..2, 4..11, 15..20, 22..23 ],
+		query => qq[
+			INSERT INTO t_en (
+				sys_id,
+				uls_fileno,
+				callsign,
+				entity_type,
+				license_id,
+				entity_name,
+				first_name,
+				mi,
+				last_name,
+				suffix,
+				street,
+				city,
+				state,
+				zip_code,
+				po_box,
+				attn,
+				frn,
+				type_code
+			)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		],
+	};
 }
 
