@@ -18,40 +18,73 @@ exit(0);
 
 sub main {
 	my $argv = shift; # \@ARGV
-	my %Opts;
+	my %Opts = (
+		update => 0,	# is this an update run?
+	);
 
 	# Populate TDEF constant hashref:
 	populate_tdef();
 
-	# Build source file options from TDEF keys:
+	# Refs to hashref constants:
 	my $tdef = TDEF(); # constant %$TDEF
+	my $tables = TABLES(); # constant @$tables
+
+	# Option handler for all table sources:
+	my $opt_table = sub {
+		my ($opt, $src) = (@_);
+		my $table = JC::ULS::Table->new;
+
+		$table->define(
+			name => uc($opt),
+			update => $Opts{update},
+			source => $src,
+			fields => $tdef->{$opt}{fields},
+			date_fields => $tdef->{$opt}{date_fields} // [],
+			query => $tdef->{$opt}{query},
+		) or die "Table $opt failed: " . $table->error;
+
+		push @$tables, $table;
+	};
+
+	# Build source file options from TDEF keys:
 	my %tdef_opts;
 	for (keys %$tdef ) {
-		$tdef_opts{"${_}=s"} = \&opt_table;
+		$tdef_opts{"${_}=s"} = $opt_table;
 	}
 
 	Getopt::Long::GetOptionsFromArray( $argv,
 		'schema|s=s' => \$Opts{schema},
 		'indexes|i=s' => \$Opts{indexes},
 		'db|database|d=s' => \$Opts{db},
+		'update|u' => \$Opts{update},
 		%tdef_opts,
 	) or die "Options error";
 
 	# Mandatory options:
-	for (qw<db schema indexes>) {
+	my @need_opts = ('db');
+	if (not $Opts{update}) {
+		push @need_opts, qw(schema indexes);
+	}
+	for (@need_opts) {
 		next if (defined $Opts{$_});
 		die "Unspecified mandatory option: $_";
 	}
 
-	# Read in full indexes file, for use when we're done:
-	open(my $fh, '<', $Opts{indexes}) or die "Index open failed: $!";
-	my @index_sql = <$fh>;
-	close($fh);
+	# Create or open the DB, as required:
+	my $dbh;
+	my $index_sql = undef;
 
-	# Create a new $dbh handle, w/ fresh schema:
-	my $dbh = mk_db(db=>$Opts{db}, schema=>$Opts{schema});
-
-	my $tables = TABLES(); # constant @$tables
+	if ($Opts{update}) {	# open existing db:
+		$dbh = open_db( db=>$Opts{db} );
+	}
+	else {			# create new db:
+		# create db, w/ fresh schema; save indexes:
+		($dbh, $index_sql) = mk_db(
+			db => $Opts{db},
+			schema => $Opts{schema},
+			indexes => $Opts{indexes},
+		);
+	}
 
 	# Prepare all table queries:
 	for my $table (@$tables) {
@@ -75,20 +108,30 @@ sub main {
 		}
 	}
 
+	# Commit when updating, as each table didn't:
+	$dbh->commit if ($Opts{update});
+
 	# Finish, setting DB tunables for normal use:
-	finish_db( dbh=>$dbh, indexes=>\@index_sql );
+	finish_db(
+		dbh => $dbh,
+		indexes => $index_sql,
+		update => $Opts{update},
+	);
 }
 
 sub mk_db {
 	my %args = (@_);
 	my $db = $args{db};
 	my $schema = $args{schema};
-	#my $Opts = shift; # \%Opts
+	my $indexes = $args{indexes};
 
 	# Need readable schema:
-	if ( not -r $schema ) {
-		die "Can't read schema: $schema";
-	}
+	die "Can't read schema: $!" if ( not -r $schema );
+
+	# Read in index file, returned for later processing:
+	open(my $fh_idx, '<', $indexes) or die "Index open failed: $!";
+	my @index_sql = <$fh_idx>;
+	close($fh_idx);
 
 	if (-f $db) {
 		unlink($db) or die "remove old db failed: $!";
@@ -104,12 +147,7 @@ sub mk_db {
 	) or die "DB connect failed: $DBI::errstr";
 
 	# Enable FK enforcement:
-	$dbh->do('PRAGMA foreign_keys(1);');
-	my $fk_row = $dbh->selectrow_arrayref('PRAGMA foreign_keys')
-		or die "FK row check failed to execute";
-	if ($fk_row->[0] != 1) {
-		die "FK is not enabled";
-	}
+	db_enable_fk( $dbh );
 
 	# MEMORY mode, for import:
 	$dbh->do('PRAGMA journal_mode = MEMORY');
@@ -127,46 +165,68 @@ sub mk_db {
 	# Disable multiple-statements, no longer needed:
 	$dbh->{sqlite_allow_multiple_statements} = 0;
 
+	return ($dbh, \@index_sql);
+}
+
+sub open_db {
+	my %args = (@_);
+	my $db = $args{db};
+
+	# Need readable DB:
+	if ( not -r $db ) {
+		die "Database not readable: $db";
+	}
+
+	# open DB:
+	my $dbh = DBI->connect("dbi:SQLite:db=$db",
+		'', '', {
+			AutoCommit => 1,
+			PrintError => 0,
+			RaiseError => 1,
+		}
+	) or die "DB connect failed: $DBI::errstr";
+
+	# Enable FK enforcement:
+	db_enable_fk( $dbh );
+
+	$dbh->{AutoCommit} = 0;
+
 	return $dbh;
+}
+
+sub db_enable_fk {
+	my $dbh = shift;
+
+	$dbh->do('PRAGMA foreign_keys(1);');
+	my $fk_row = $dbh->selectrow_arrayref('PRAGMA foreign_keys')
+		or die "FK row check failed to execute";
+	if ($fk_row->[0] != 1) {
+		die "FK is not enabled";
+	}
 }
 
 sub finish_db {
 	my %args = (@_);
 	my $dbh = $args{dbh};
-	my $indexes = $args{indexes}; # \@index_sql
+	my $indexes = $args{indexes};	# \@index_sql
+	my $update = $args{update};	# bool, if updating
 
 	$dbh->{AutoCommit} = 1;
 
-	# Build indexes:
-	print(STDERR "Building indexes..");
-	$dbh->{sqlite_allow_multiple_statements} = 1;
-	$dbh->do( "@$indexes" );
-	$dbh->{sqlite_allow_multiple_statements} = 0;
-	print(STDERR "\n");
+	# Build indexes, for new DBs only
+	if (not $update) {
+		print(STDERR "Building indexes..");
+		$dbh->{sqlite_allow_multiple_statements} = 1;
+		$dbh->do( "@$indexes" );
+		$dbh->{sqlite_allow_multiple_statements} = 0;
+		print(STDERR "\n");
+	}
 
 	# ANALYZE and reset journal_mode:
 	print(STDERR "Analyze DB..");
 	$dbh->do('ANALYZE');
 	$dbh->do('PRAGMA journal_mode = DELETE');
 	print(STDERR "\n");
-}
-
-sub opt_table {
-	my ($opt, $src) = (@_);
-
-	my $table = JC::ULS::Table->new;
-	my $tdef = TDEF();	# constant %$tdef
-	my $tables = TABLES();	# constant @$tables
-
-	$table->define(
-		name => uc($opt),
-		source => $src,
-		fields => $tdef->{$opt}{fields},
-		date_fields => $tdef->{$opt}{date_fields} // [],
-		query => $tdef->{$opt}{query},
-	) or die "Table $opt failed: " . $table->error;
-
-	push @$tables, $table;
 }
 
 sub populate_tdef {
@@ -176,7 +236,7 @@ sub populate_tdef {
 		date_fields => [ 7..9, 42..43 ],
 		fields => [ 1..2, 4..9, 42..43 ],
 		query => qq[
-			INSERT INTO t_hd (
+			INSERT OR REPLACE INTO t_hd (
 				sys_id,
 				uls_fileno,
 				callsign,
@@ -194,7 +254,7 @@ sub populate_tdef {
 	$tdef->{am} = {
 		fields => [ 1..2, 4..9, 12..13, 15..17 ],
 		query => qq[
-			INSERT INTO t_am (
+			INSERT OR REPLACE INTO t_am (
 				sys_id,
 				uls_fileno,
 				callsign,
@@ -215,7 +275,7 @@ sub populate_tdef {
 	$tdef->{en} = {
 		fields => [ 1..2, 4..11, 15..20, 22..23 ],
 		query => qq[
-			INSERT INTO t_en (
+			INSERT OR REPLACE INTO t_en (
 				sys_id,
 				uls_fileno,
 				callsign,

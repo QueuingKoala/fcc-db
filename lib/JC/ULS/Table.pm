@@ -42,7 +42,7 @@ sub define {
 	);
 
 	# Verify required args:
-	for (qw[ name source fields query ]) {
+	for (qw[ name update source fields query ]) {
 		return $self->error("missing arg: $_") if (not exists $args{$_});
 	}
 
@@ -99,6 +99,7 @@ sub import {
 	my $dbh = $args{dbh};			# dbh handle
 
 	# Short names of object attribute:
+	my $update = $self->get('update');	# bool, if we're updating DB.
 	my $sth = $self->get('sth');		# insert SQL statement handle
 	my $src_file = $self->get('source');	# source input file
 	my $cols = $self->get('fields');	# array-ref of insert column indexes
@@ -138,13 +139,12 @@ sub import {
 			};
 			if ($@) {
 				print Dumper( \@row );
-				$dbh->commit;
 				die "$@";
 			}
 		}
 		continue {
 			if ($. % 100000 == 0) {
-				$dbh->commit;
+				$dbh->commit if (not $update);
 				printf(STDERR "%dk.. ", $. / 1000);
 			}
 		}
@@ -152,9 +152,10 @@ sub import {
 		printf(STDERR "%d.\n", $.);
 
 		close($fh);
-		$dbh->commit;
+		$dbh->commit if (not $update);
 	};
 	if ($@) {
+		eval { $dbh->rollback; };
 		return $self->error("Import error: $@");
 	}
 
