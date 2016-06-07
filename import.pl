@@ -109,7 +109,11 @@ sub main {
 	}
 
 	# Commit when updating, as each table didn't:
-	$dbh->commit if ($Opts{update});
+	if ($Opts{update}) {
+		print( STDERR "Commit changes.." );
+		$dbh->commit;
+		print( STDERR "\n" );
+	}
 
 	# Finish, setting DB tunables for normal use:
 	finish_db(
