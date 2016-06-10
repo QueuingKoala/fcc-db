@@ -9,7 +9,6 @@ use lib 'lib';
 use JC::ULS::Table ();
 
 use constant {
-	TDEF => { },	# table defs, created by populate_tdef()
 	TABLES => [],	# table object storage
 };
 
@@ -22,42 +21,30 @@ sub main {
 		update => 0,	# is this an update run?
 	);
 
-	# Populate TDEF constant hashref:
-	populate_tdef();
-
 	# Refs to hashref constants:
-	my $tdef = TDEF(); # constant %$TDEF
 	my $tables = TABLES(); # constant @$tables
 
 	# Option handler for all table sources:
 	my $opt_table = sub {
 		my ($opt, $src) = (@_);
-		my $table = JC::ULS::Table->new;
 
-		$table->define(
+		my $table = mk_table(
 			name => uc($opt),
-			update => $Opts{update},
 			source => $src,
-			fields => $tdef->{$opt}{fields},
-			date_fields => $tdef->{$opt}{date_fields} // [],
-			query => $tdef->{$opt}{query},
-		) or die "Table $opt failed: " . $table->error;
+			update => $Opts{update},
+		) or die "mk_table failed on $opt";
 
 		push @$tables, $table;
 	};
-
-	# Build source file options from TDEF keys:
-	my %tdef_opts;
-	for (keys %$tdef ) {
-		$tdef_opts{"${_}=s"} = $opt_table;
-	}
 
 	Getopt::Long::GetOptionsFromArray( $argv,
 		'schema|s=s' => \$Opts{schema},
 		'indexes|i=s' => \$Opts{indexes},
 		'db|database|d=s' => \$Opts{db},
 		'update|u' => \$Opts{update},
-		%tdef_opts,
+		'hd=s' => $opt_table,
+		'am=s' => $opt_table,
+		'en=s' => $opt_table,
 	) or die "Options error";
 
 	# Mandatory options:
@@ -233,13 +220,42 @@ sub finish_db {
 	print(STDERR "\n");
 }
 
-sub populate_tdef {
-	my $tdef = TDEF();
+# $table = mk_table(
+#	name => $disp_name,
+#	update => $bool,
+#	source => $file,
+# ) or die "failure";
 
-	$tdef->{hd} = {
-		date_fields => [ 7..9, 42..43 ],
-		fields => [ 1..2, 4..9, 42..43 ],
-		query => qq[
+sub mk_table {
+	my %args = (@_);
+	for (qw[name update source]) {
+		die "mk_table(): missing arg $_" if (not exists $args{$_});
+	}
+
+	my $table = JC::ULS::Table->new;
+	$table->define(
+		%args
+	) or die "Table $args{name} failed define: " . $table->error;
+
+	for ($args{name}) {
+		query_hd($table) if ($_ eq "HD");
+		query_am($table) if ($_ eq "AM");
+		query_en($table) if ($_ eq "EN");
+	}
+
+	return $table;
+}
+
+sub query_hd {
+	my $table = shift;
+
+	$table->dateFields(
+		dates => [ 8..10, 43..44 ],
+	) or die "HD dates failed: " . $table->error;
+
+	$table->addQuery(
+		fields => [ 2..3, 5..10, 43..44 ],
+		sql => qq[
 			INSERT OR REPLACE INTO t_hd (
 				sys_id,
 				uls_fileno,
@@ -254,10 +270,15 @@ sub populate_tdef {
 			)
 			VALUES (?,?,?,?,?,?,?,?,?,?)
 		],
-	};
-	$tdef->{am} = {
-		fields => [ 1..2, 4..9, 12..13, 15..17 ],
-		query => qq[
+	) or die "HD sth failed: " . $table->error;
+}
+
+sub query_am {
+	my $table = shift;
+
+	$table->addQuery(
+		fields => [ 2..3, 5..10, 13..14, 16..18 ],
+		sql => qq[
 			INSERT OR REPLACE INTO t_am (
 				sys_id,
 				uls_fileno,
@@ -275,10 +296,15 @@ sub populate_tdef {
 			)
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
-	};
-	$tdef->{en} = {
-		fields => [ 1..2, 4..11, 15..20, 22..23 ],
-		query => qq[
+	) or die "AM sth failed";
+}
+
+sub query_en {
+	my $table = shift;
+
+	$table->addQuery(
+		fields => [ 2..3, 5..12, 16..21, 23..24 ],
+		sql => qq[
 			INSERT OR REPLACE INTO t_en (
 				sys_id,
 				uls_fileno,
@@ -301,6 +327,6 @@ sub populate_tdef {
 			)
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
-	};
+	) or die "EN sth failed";
 }
 

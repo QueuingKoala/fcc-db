@@ -2,7 +2,9 @@ package JC::ULS::Table;
 
 use strict;
 use warnings;
+use Carp ();
 use Data::Dumper qw(Dumper);
+use JC::ULS::Statement ();
 
 # --
 # Class-scoped vars
@@ -17,7 +19,10 @@ use Data::Dumper qw(Dumper);
 sub new {
 	my $class = shift;
 	$class = ref($class) || $class;
-	bless {}, $class;
+	my $self = {
+		statements => [],
+	};
+	bless $self, $class;
 }
 
 # --
@@ -27,9 +32,7 @@ sub new {
 # $rcBool = $t->define(
 #	name => $display_name,		# Required, display name of table
 #	source => $file,		# Required, source file with records
-#	fields => \@field_nums,		# Required, fields of records for query values
-#	date_fields => \@field_nums,	# Optional, fields for US->ISO conversion
-#	query => $sql,			# Required, SQL to insert a record
+#	update => $bool,		# Required, indicates if we're updating
 # );
 #
 # Updates $t->error on failure with cause.
@@ -42,11 +45,34 @@ sub define {
 	);
 
 	# Verify required args:
-	for (qw[ name update source fields query ]) {
+	for (qw[ name update source ]) {
 		return $self->error("missing arg: $_") if (not exists $args{$_});
 	}
 
 	$self->{args} = \%args;
+	return 1;
+}
+
+# $rcBool = $t->addQuery(
+#	fields => \@field_cols,		# (1-indexed)
+#	sql => $sql_statement,
+# );
+#
+# Updates $t->error on failure with cause.
+
+sub addQuery {
+	my ($self, %args) = (@_);
+
+	for (qw[ fields sql ]) {
+		return $self->error("missing arg: $_") if (not exists $args{$_});
+	}
+
+	my $st = JC::ULS::Statement->new( %args )
+		or return $self->error("statement object failed create");
+
+	my $statements = $self->{statements}; # \@statements
+	push @$statements, $st;
+
 	return 1;
 }
 
@@ -64,26 +90,44 @@ sub get {
 	return $self->{args}{$key};
 }
 
+# $rcBool = $t->dateFields(
+#	dates => \@date_fields,
+# );
+#
+# Updates $t->error on failure with cause.
+
+sub dateFields {
+	my ($self, %args) = (@_);
+
+	my $dates = $args{dates} # \@date_fields
+		or return $self->error("Missing required arg: 'dates'");
+
+	# Convert field numbers to array indexes (subtract 1):
+	grep { --$_ } @$dates;
+
+	$self->{args}{date_fields} = $dates;
+	return 1;
+}
+
 # $rcBool = $t->prepare(
 #	dbh => $dbh,			# Required, dbh object
 # );
 #
-# On success, stores sth for future access with $t->get('sth').
-# Updates $t->error on failure with cause.
+# On success, prepares all statement objects in the table.
+#
+# On failure, Updates $t->error with cause.
 
 sub prepare {
 	my ($self, %args) = (@_);
 
-	# Must have dbh:
-	return $self->error("no dbh passed") if (not exists $args{dbh});
-	my $dbh = $args{dbh};
+	my $dbh = $args{dbh} or
+		return $self->error("no dbh passed");
+	my $statements = $self->{statements}; # \@statements
 
 	eval {
-		$self->{args}{sth} = $dbh->prepare( $self->get('query') );
+		$_->prepare(dbh=>$dbh) for (@$statements);
 	};
-	if ($@) {
-		return $self->error("$@");
-	}
+	return $self->error("$@") if ($@);
 
 	return 1;
 }
@@ -100,9 +144,8 @@ sub import {
 
 	# Short names of object attribute:
 	my $update = $self->get('update');	# bool, if we're updating DB.
-	my $sth = $self->get('sth');		# insert SQL statement handle
+	my $statements = $self->{statements};	# \@statement_objects
 	my $src_file = $self->get('source');	# source input file
-	my $cols = $self->get('fields');	# array-ref of insert column indexes
 	my $date_conv = $self->get('date_fields'); # array-ref of US date indexes
 	my $name = $self->get('name');		# short name of table (for display)
 
@@ -130,16 +173,9 @@ sub import {
 				date_to_iso( \$fields[$_] );
 			}
 
-			# Extract columns of interest:
-			my @row = @fields[@$cols];
-
-			# Insert:
-			eval {
-				$sth->execute( (@row) );
-			};
-			if ($@) {
-				print Dumper( \@row );
-				die "$@";
+			# Execute all statements:
+			for my $st (@$statements) {
+				$st->execute( row => \@fields );
 			}
 		}
 		continue {
@@ -155,8 +191,9 @@ sub import {
 		$dbh->commit if (not $update);
 	};
 	if ($@) {
+		my $err = "$@";
 		eval { $dbh->rollback; };
-		return $self->error("Import error: $@");
+		Carp::confess( "Import error: $err" );
 	}
 
 	return 1;
