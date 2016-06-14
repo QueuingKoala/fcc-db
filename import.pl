@@ -50,6 +50,8 @@ sub main {
 		'hd=s' => $opt_table,
 		'am=s' => $opt_table,
 		'en=s' => $opt_table,
+		'ad=s' => $opt_table,
+		'vc=s' => $opt_table,
 	) or die "Options error";
 
 	# Mandatory options:
@@ -246,6 +248,8 @@ sub mk_table {
 		query_hd($table) if ($_ eq "HD");
 		query_am($table) if ($_ eq "AM");
 		query_en($table) if ($_ eq "EN");
+		query_ad($table) if ($_ eq "AD");
+		query_vc($table) if ($_ eq "VC");
 	}
 
 	return $table;
@@ -301,7 +305,7 @@ sub query_am {
 			)
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
-	) or die "AM sth failed";
+	) or die "AM sth failed: " . $table->error;
 }
 
 sub query_en {
@@ -332,6 +336,60 @@ sub query_en {
 			)
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
-	) or die "EN sth failed";
+	) or die "EN sth failed: " . $table->error;
+}
+
+sub query_ad {
+	my $table = shift;
+
+	$table->dateFields(
+		dates => [ 11, 22 ],
+	) or die "HD dates failed: " . $table->error;
+
+	$table->addQuery(
+		fields => [ 2..3, 5..6, 11, 16..17, 19, 22 ],
+		sql => qq[
+			INSERT OR REPLACE INTO t_ad (
+				sys_id,
+				uls_fileno,
+				purpose,
+				status,
+				receipt_date,
+				orig_purpose,
+				waver_req,
+				has_attachment,
+				entry_date
+			)
+			VALUES (?,?,?,?,?,?,?,?,?)
+		],
+	) or die "AD sth failed: " . $table->error;
+}
+
+sub query_vc {
+	my $table = shift;
+
+	if ( $table->get('update') ) {
+		$table->addQuery(
+			fields => [ 2 ],
+			sql => qq[
+				DELETE FROM t_vc
+				WHERE
+				sys_id = ?
+			],
+		) or die "VC sth (delete) failed: " . $table->error;
+	}
+
+	$table->addQuery(
+		fields=> [ 2..3, 5..6 ],
+		sql => qq[
+			INSERT OR REPLACE INTO t_vc (
+				sys_id,
+				uls_fileno,
+				pref_order,
+				callsign
+			)
+			VALUES (?,?,?,?)
+		],
+	) or die "VC sth failed: " . $table->error;
 }
 
