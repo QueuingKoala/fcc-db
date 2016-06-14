@@ -4,8 +4,13 @@ use strict;
 use warnings;
 use Getopt::Long ();
 use DBI ();
-use Data::Dumper qw(Dumper);
-use lib 'lib';
+#use Data::Dumper qw(Dumper);
+
+BEGIN {
+	require File::Spec;
+	my ($vol, $dir) = File::Spec->splitpath($0);
+	unshift @INC, File::Spec->catdir($dir, 'lib');
+};
 use JC::ULS::Table ();
 
 use constant {
