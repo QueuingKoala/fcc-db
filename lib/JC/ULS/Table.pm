@@ -3,7 +3,7 @@ package JC::ULS::Table;
 use strict;
 use warnings;
 use Carp ();
-use Data::Dumper qw(Dumper);
+#use Data::Dumper qw(Dumper);
 use JC::ULS::Statement ();
 
 # --
