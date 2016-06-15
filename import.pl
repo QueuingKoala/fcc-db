@@ -24,6 +24,7 @@ sub main {
 	my $argv = shift; # \@ARGV
 	my %Opts = (
 		update => 0,	# is this an update run?
+		analyze => 1,	# do we analyze after finish?
 	);
 
 	# Refs to hashref constants:
@@ -46,7 +47,8 @@ sub main {
 		'schema|s=s' => \$Opts{schema},
 		'indexes|i=s' => \$Opts{indexes},
 		'db|database|d=s' => \$Opts{db},
-		'update|u' => \$Opts{update},
+		'update|u!' => \$Opts{update},
+		'analyze|a!' => \$Opts{analyze},
 		'hd=s' => $opt_table,
 		'am=s' => $opt_table,
 		'en=s' => $opt_table,
@@ -114,6 +116,7 @@ sub main {
 		dbh => $dbh,
 		indexes => $index_sql,
 		update => $Opts{update},
+		analyze => $Opts{analyze},
 	);
 }
 
@@ -208,6 +211,7 @@ sub finish_db {
 	my $dbh = $args{dbh};
 	my $indexes = $args{indexes};	# \@index_sql
 	my $update = $args{update};	# bool, if updating
+	my $analyze = $args{analyze};	# bool, if analyzing
 
 	$dbh->{AutoCommit} = 1;
 
@@ -221,8 +225,13 @@ sub finish_db {
 	}
 
 	# ANALYZE and reset journal_mode:
-	print(STDERR "Analyze DB..");
-	$dbh->do('ANALYZE');
+	if ($analyze) {
+		print(STDERR "Analyze DB..");
+		$dbh->do('ANALYZE');
+	}
+	else {
+		print(STDERR "(Skipping Analyze)");
+	}
 	$dbh->do('PRAGMA journal_mode = DELETE');
 	print(STDERR "\n");
 }
