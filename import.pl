@@ -25,6 +25,7 @@ sub main {
 	my %Opts = (
 		update => 0,	# is this an update run?
 		analyze => 1,	# do we analyze after finish?
+		remove => 0,	# may we remove existing DB file on create?
 	);
 
 	# Refs to hashref constants:
@@ -49,6 +50,7 @@ sub main {
 		'db|database|d=s' => \$Opts{db},
 		'update|u!' => \$Opts{update},
 		'analyze|a!' => \$Opts{analyze},
+		'remove|r!' => \$Opts{remove},
 		'hd=s' => $opt_table,
 		'am=s' => $opt_table,
 		'en=s' => $opt_table,
@@ -79,6 +81,7 @@ sub main {
 			db => $Opts{db},
 			schema => $Opts{schema},
 			indexes => $Opts{indexes},
+			remove => $Opts{remove},
 		);
 	}
 
@@ -125,6 +128,7 @@ sub mk_db {
 	my $db = $args{db};
 	my $schema = $args{schema};
 	my $indexes = $args{indexes};
+	my $remove = $args{remove};
 
 	# Need readable schema:
 	die "Can't read schema: $!" if ( not -r $schema );
@@ -135,6 +139,9 @@ sub mk_db {
 	close($fh_idx);
 
 	if (-f $db) {
+		if (not $remove) {
+			die "Cannot remove existing DB without -r option";
+		}
 		unlink($db) or die "remove old db failed: $!";
 	}
 	# New DB:
