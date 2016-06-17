@@ -14,10 +14,6 @@ BEGIN {
 use JC::ULS::Data ();
 use JC::ULS::Table ();
 
-use constant {
-	TABLES => [],	# table object storage
-};
-
 main(\@ARGV);
 exit(0);
 
@@ -29,8 +25,8 @@ sub main {
 		remove => 0,	# may we remove existing DB file on create?
 	);
 
-	# Refs to hashref constants:
-	my $tables = TABLES(); # constant @$tables
+	# Storage for table objects:
+	my @tables;
 
 	# Option handler for all table sources:
 	my $opt_table = sub {
@@ -52,7 +48,7 @@ sub main {
 		# Set up the table object with processing statements:
 		$data->$meth( $table );
 
-		push @$tables, $table;
+		push @tables, $table;
 	};
 
 	Getopt::Long::GetOptionsFromArray( $argv,
@@ -97,7 +93,7 @@ sub main {
 	}
 
 	# Prepare all table queries:
-	for my $table (@$tables) {
+	for my $table (@tables) {
 		my $rc = $table->prepare(dbh=>$dbh);
 		if (not $rc) {
 			die sprintf("Table %s prepare failed: %s",
@@ -108,7 +104,7 @@ sub main {
 	}
 
 	# Perform table imports:
-	for my $table (@$tables) {
+	for my $table (@tables) {
 		my $rc = $table->import(dbh=>$dbh);
 		if (not $rc) {
 			die sprintf("Table %s import failed: %s",
