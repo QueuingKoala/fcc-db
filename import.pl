@@ -35,12 +35,22 @@ sub main {
 	# Option handler for all table sources:
 	my $opt_table = sub {
 		my ($opt, $src) = (@_);
+		my $name = uc($opt);
 
-		my $table = mk_table(
-			name => uc($opt),
+		# SQL statement data encapsulation object:
+		my $data = JC::ULS::Data->new;
+		my $meth = $data->can("query_$name")
+			or die "No support for table type: $name";
+
+		my $table = JC::ULS::Table->new;
+		$table->define(
+			name => $name,
 			source => $src,
 			update => $Opts{update},
-		) or die "mk_table failed on $opt";
+		) or die "Table $name failed define: " . $table->error;
+
+		# Set up the table object with processing statements:
+		$data->$meth( $table );
 
 		push @$tables, $table;
 	};
@@ -242,34 +252,5 @@ sub finish_db {
 	}
 	$dbh->do('PRAGMA journal_mode = DELETE');
 	print(STDERR "\n");
-}
-
-# $table = mk_table(
-#	name => $disp_name,
-#	update => $bool,
-#	source => $file,
-# ) or die "failure";
-
-sub mk_table {
-	my %args = (@_);
-	for (qw[name update source]) {
-		die "mk_table(): missing arg $_" if (not exists $args{$_});
-	}
-
-	# SQL statement data encapsulation object:
-	my $data = JC::ULS::Data->new;
-
-	my $meth = $data->can("query_$args{name}")
-		or die "No support for table type: $args{name}";
-
-	my $table = JC::ULS::Table->new;
-	$table->define(
-		%args
-	) or die "Table $args{name} failed define: " . $table->error;
-
-	# Set up the table object with processing statements:
-	$data->$meth( $table );
-
-	return $table;
 }
 
