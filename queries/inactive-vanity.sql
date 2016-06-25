@@ -1,4 +1,6 @@
-CREATE TEMP TABLE tmp_ivc AS
+DROP VIEW IF EXISTS tmp_ivc;
+
+CREATE TEMP VIEW tmp_ivc AS
 SELECT
 	sys_id
 	,callsign
