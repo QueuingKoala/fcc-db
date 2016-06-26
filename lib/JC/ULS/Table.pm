@@ -179,7 +179,7 @@ sub import {
 			}
 		}
 		continue {
-			if ($. % 100000 == 0) {
+			if ($. % 250000 == 0) {
 				$dbh->commit if (not $update);
 				printf(STDERR "%dk.. ", $. / 1000);
 			}
