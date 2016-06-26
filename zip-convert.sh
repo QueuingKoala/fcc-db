@@ -57,7 +57,7 @@ process_zip() {
 	[ -n "$date" ] || die "empty date in counts"
 
 	# Format newdir from zip date, and verify it doesn't yet exist:
-	newdir="$outdir/$(date -d "$date" +%Y-%m-%d)"
+	newdir="$outdir/$(TZ=US/Eastern date -d "$date" +%Y-%m-%d)"
 	[ -e "$newdir" ] && die "dir already exists for date: $newdir"
 
 	# Convert the *.dat files to Unix, renaming to *.data
