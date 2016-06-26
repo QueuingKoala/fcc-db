@@ -21,11 +21,12 @@ warn() { echo "$1" >&2; }
 die() { warn "$1"; exit "${2:-1}"; }
 
 main() {
-	outdir="" zip=""
-	while getopts ho:z: opt
+	outdir="" zip="" keep_failed=0
+	while getopts hko:z: opt
 	do
 		case "$opt" in
 			h)	usage_exit ;;
+			k)	keep_failed=1 ;;
 			o)	outdir="$OPTARG" ;;
 			z)	zip="$OPTARG" ;;
 			?)	exit 1
@@ -38,7 +39,10 @@ main() {
 	extdir=$(mktemp -d "$outdir/temp.XXXX") || die "mktemp failed"
 	trap cleanup_temp EXIT
 
-	( process_zip ) || die "Processing failed"
+	( process_zip ) || {
+		[ "$keep_failed" -eq 1 ] && trap - EXIT
+		die "Processing failed"
+	}
 	trap - EXIT
 
 	exit 0
