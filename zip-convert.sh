@@ -61,10 +61,12 @@ process_zip() {
 	[ -e "$newdir" ] && die "dir already exists for date: $newdir"
 
 	# Convert the *.dat files to Unix, renaming to *.data
-	for dat in "$extdir/"*.dat
-	do
-		crlf_convert -i "$dat" -o "${dat%.dat}.data" -d || die "failed convert: $dat"
-	done
+	find "$extdir" -type f -name '*.dat' | \
+		while IFS= read -r dat;
+		do
+			crlf_convert -i "$dat" -o "${dat%.dat}.data" -d \
+				|| die "failed convert: $dat"
+		done
 
 	# Rename the temp dir:
 	mv "$extdir" "$newdir" || die "failed final dir rename"
