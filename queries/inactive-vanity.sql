@@ -23,8 +23,5 @@ WHERE
 	)
 GROUP BY
 	callsign
-ORDER BY
-	end_date DESC
-	,callsign
 ;
 
