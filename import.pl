@@ -92,6 +92,9 @@ sub main {
 		);
 	}
 
+	# Set up in-memory schema for ephemeral processing needs:
+	runtime_schema( dbh=>$dbh );
+
 	# Prepare all table queries:
 	for my $table (@tables) {
 		my $rc = $table->prepare(dbh=>$dbh);
@@ -207,6 +210,13 @@ sub open_db {
 	$dbh->{AutoCommit} = 0;
 
 	return $dbh;
+}
+
+sub runtime_schema {
+	my %args = (@_);
+	my $dbh = $args{dbh} or die "No dbh";
+
+	$dbh->do('CREATE TEMP TABLE t_vc_seen (sys_id INTEGER PRIMARY KEY)');
 }
 
 sub db_enable_fk {

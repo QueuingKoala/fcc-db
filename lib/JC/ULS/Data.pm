@@ -137,21 +137,37 @@ sub query_AD {
 sub query_VC {
 	my ($self, $table) = (@_);
 
-#	if ( $table->get('update') ) {
-#		$table->addQuery(
-#			fields => [ 2 ],
-#			sql => qq[
-#				DELETE FROM t_vc
-#				WHERE
-#				sys_id = ?
-#			],
-#		) or die "VC sth (delete) failed: " . $table->error;
-#	}
+	# When updating, initial duplicate sys_id rows must first be removed.
+	# These are part of the composit PK which may not always be replaced.
+
+	if ( $table->get('update') ) {
+		$table->addQuery(
+			fields => [ 2, 2 ],
+			sql => qq[
+				DELETE FROM t_vc
+				WHERE
+				sys_id = ?
+				AND
+				( (SELECT count(sys_id) FROM temp.t_vc_seen WHERE sys_id = ?) = 0
+				)
+			],
+		) or die "VC sth (delete) failed: " . $table->error;
+
+		$table->addQuery(
+			fields => [ 2 ],
+			sql => qq[
+				INSERT OR IGNORE INTO temp.t_vc_seen (
+					sys_id
+				)
+				VALUES (?)
+			],
+		) or die "VC sth (temp sys_id) failed: " . $table->error;
+	}
 
 	$table->addQuery(
 		fields=> [ 2..3, 5..6 ],
 		sql => qq[
-			INSERT OR REPLACE INTO t_vc (
+			INSERT INTO t_vc (
 				sys_id,
 				uls_fileno,
 				pref_order,
