@@ -137,16 +137,16 @@ sub query_AD {
 sub query_VC {
 	my ($self, $table) = (@_);
 
-	if ( $table->get('update') ) {
-		$table->addQuery(
-			fields => [ 2 ],
-			sql => qq[
-				DELETE FROM t_vc
-				WHERE
-				sys_id = ?
-			],
-		) or die "VC sth (delete) failed: " . $table->error;
-	}
+#	if ( $table->get('update') ) {
+#		$table->addQuery(
+#			fields => [ 2 ],
+#			sql => qq[
+#				DELETE FROM t_vc
+#				WHERE
+#				sys_id = ?
+#			],
+#		) or die "VC sth (delete) failed: " . $table->error;
+#	}
 
 	$table->addQuery(
 		fields=> [ 2..3, 5..6 ],
