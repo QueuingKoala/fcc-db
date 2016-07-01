@@ -10,7 +10,7 @@ process: import 1 or more FCC ULS data dirs to a new or existing database
 SYNOPSIS:
 
 ./daily-import.sh -b <IMPORT_BIN> -d <DATABASE>
-	[-w <WEEKLY_DIR> -t <TYPE> [-r] ]
+	[-w <WEEKLY_DIR> -t <TYPE> [-r] [-n] ]
 
 See also: STDIN
 
@@ -21,6 +21,7 @@ ARGUMENTS:
 -w <WEEKLY_DIR>: path to dir for weekly DB import
 -t <TYPE>: one of "l[icense]" or "a[pplications]", for new DB schema type
 -r: remove an existing database file before a weekly import
+-n: no daily dirs passed via STDIN
 
 STDIN:
 
@@ -31,13 +32,14 @@ _END_USAGE
 }
 
 main() {
-	bin="" db="" remove="" weekly="" db_type=""
-	while getopts hb:d:rt:w: opt
+	bin="" db="" remove="" weekly="" db_type="" daily=1
+	while getopts hb:d:nrt:w: opt
 	do
 		case "$opt" in
 			h)	usage_exit ;;
 			b)	bin="$OPTARG" ;;
 			d)	db="$OPTARG" ;;
+			n)	daily=0 ;;
 			r)	remove=1 ;;
 			t)	db_type="$OPTARG" ;;
 			w)	weekly="$OPTARG" ;;
@@ -69,13 +71,15 @@ main() {
 	fi
 
 	# Daily table imports from STDIN:
-	while IFS= read -r name
-	do
-		[ -d "$name" ] || die "dir does not exist: $name"
-		echo "Importing ${name}.."
-		call_import "$name" -u || die "Import failed"
-		echo ".. Import Done."
-	done
+	if [ "$daily" -eq 1 ]; then
+		while IFS= read -r name
+		do
+			[ -d "$name" ] || die "dir does not exist: $name"
+			echo "Importing ${name}.."
+			call_import "$name" -u || die "Import failed"
+			echo ".. Import Done."
+		done
+	fi
 
 	# Post-import analyze:
 	echo "Calling ANALYZE.."
