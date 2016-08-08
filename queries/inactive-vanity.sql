@@ -21,6 +21,16 @@ WHERE
 	callsign NOT IN (
 		SELECT callsign FROM t_hd WHERE license_status = 'A'
 	)
+	AND callsign NOT LIKE 'AL%'
+	AND callsign NOT LIKE 'NL%'
+	AND callsign NOT LIKE 'WL%'
+	AND callsign NOT LIKE 'KP%'
+	AND callsign NOT LIKE 'NP%'
+	AND callsign NOT LIKE 'WP%'
+	AND callsign NOT LIKE 'AH%'
+	AND callsign NOT LIKE 'KH%'
+	AND callsign NOT LIKE 'NH%'
+	AND callsign NOT LIKE 'WH%'
 GROUP BY
 	callsign
 ;
