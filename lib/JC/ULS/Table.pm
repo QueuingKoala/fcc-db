@@ -179,8 +179,12 @@ sub import {
 			}
 		}
 		continue {
+			# Commit every 100k:
+			if (not $update and $. % 100000 == 0) {
+				$dbh->commit;
+			}
+			# Display progress every 250k:
 			if ($. % 250000 == 0) {
-				$dbh->commit if (not $update);
 				printf(STDERR "%dk.. ", $. / 1000);
 			}
 		}

@@ -7,20 +7,19 @@ SELECT
 	,license_status
 	,grant_date
 	,max(
-		(coalesce(
-			canceled_date,
-			expired_date
-		))
+		CASE license_status
+			WHEN 'E' THEN
+				expired_date
+			ELSE
+				--canceled_date
+				coalesce( canceled_date, expired_date )
+		END
 	) AS end_date
 	,last_action_date
 FROM
 	fcc.t_hd
 WHERE
 	length(callsign) = 4
-	AND
-	callsign NOT IN (
-		SELECT callsign FROM t_hd WHERE license_status = 'A'
-	)
 	AND callsign NOT LIKE 'AL%'
 	AND callsign NOT LIKE 'NL%'
 	AND callsign NOT LIKE 'WL%'
