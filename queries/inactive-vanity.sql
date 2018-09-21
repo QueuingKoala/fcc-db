@@ -21,6 +21,7 @@ FROM
 WHERE
 	length(callsign) = 4
 	AND callsign NOT LIKE 'AL%'
+	AND callsign NOT like 'KL%'
 	AND callsign NOT LIKE 'NL%'
 	AND callsign NOT LIKE 'WL%'
 	AND callsign NOT LIKE 'KP%'
