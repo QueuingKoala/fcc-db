@@ -49,7 +49,7 @@ main() {
 }
 
 process_zip() {
-	unzip -q "$zip" -d "$extdir" || die "unzip failed"
+	7z x -bb0 -o"$extdir" "$zip" || die "7z extract failed"
 
 	# Convert counts & read in date:
 	crlf_convert -i "$extdir/counts" -s || die "failed convert counts"
