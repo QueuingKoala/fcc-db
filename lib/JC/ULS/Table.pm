@@ -21,6 +21,7 @@ sub new {
 	$class = ref($class) || $class;
 	my $self = {
 		statements => [],
+		callbacks => [],
 	};
 	bless $self, $class;
 }
@@ -56,6 +57,7 @@ sub define {
 # $rcBool = $t->addQuery(
 #	fields => \@field_cols,		# (1-indexed)
 #	sql => $sql_statement,
+#	[ callbacks => \@callback_coderefs, ]
 # );
 #
 # Updates $t->error on failure with cause.
@@ -145,6 +147,7 @@ sub import {
 	# Short names of object attribute:
 	my $update = $self->get('update');	# bool, if we're updating DB.
 	my $statements = $self->{statements};	# \@statement_objects
+	my $callbacks = $self->{callbacks};	# \@callback_subrefs
 	my $src_file = $self->get('source');	# source input file
 	my $date_conv = $self->get('date_fields'); # array-ref of US date indexes
 	my $name = $self->get('name');		# short name of table (for display)

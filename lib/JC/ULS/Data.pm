@@ -54,8 +54,27 @@ sub query_HD {
 sub query_AM {
 	my ($self, $table) = (@_);
 
+	my $exec_district = sub {
+		my ($row, $out) = (@_);
+		my $district = eval {
+			for my $call ( $row->[5-1] // "" ) {
+				return 11 if ( $call =~ /^(AL|KL|NL|WL)/ );
+				return 12 if ( $call =~ /^(KP|NP|WP)/ );
+				return 13 if ( $call =~ /^(AH|KH|NH|WH)/ );
+				return undef if ( $call =~ /^[AKNW]F[0-9]EMA$/ );
+				return undef if ( length($call) == 3 );
+				if ( $call =~ /^[[:alpha:]]+([0-9])[[:alpha:]]$/ ) {
+					return $1;
+				}
+				return undef;
+			}
+		};
+		push( @$out, $district );
+	};
+
 	$table->addQuery(
 		fields => [ 2..3, 5..10, 13..14, 16..18 ],
+		callbacks => [ $exec_district ],
 		sql => qq[
 			INSERT OR REPLACE INTO t_am (
 				sys_id,
@@ -70,9 +89,10 @@ sub query_AM {
 				vanity_call_change,
 				previous_callsign,
 				previous_op_class,
-				trustee_name
+				trustee_name,
+				district
 			)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
 	) or die "AM sth failed: " . $table->error;
 }

@@ -16,6 +16,7 @@ use warnings;
 # my $st = JC::ULS::Statement->(
 #	fields => \@field_indexes,
 #	sql => $sql_statement,
+#	[ callbacks => \@callback_coderefs, ]
 # );
 
 sub new {
@@ -26,6 +27,9 @@ sub new {
 	for (qw[ fields sql ]) {
 		return undef if (not exists $args{$_});
 	}
+
+	# Optional args:
+	$args{callbacks} = [] if (not exists $args{callbacks});
 
 	# Convert field numbers to array indexes (subtract 1):
 	grep { --$_ } @{$args{fields}};
@@ -64,12 +68,21 @@ sub execute {
 	my $sth = $self->{sth}
 		or die "st->execute(): no sth. Forget prepare?";
 
+	# Run optional callbacks:
+
+	my @cb_values = ();
+	my $callbacks = $self->{callbacks};
+	for my $cb ( @$callbacks ) {
+		$cb->( $row, \@cb_values );
+		#printf(STDERR "DBG: cb_values: %s\n", join(',', @cb_values) );
+	}
+
 	# Extract columns of interest:
 	my $cols = $self->{fields}; # \@fields
 	my @values = @$row[@$cols];
 
 	# Insert:
-	$sth->execute( @values );
+	$sth->execute( @values, @cb_values );
 }
 
 sub error {
