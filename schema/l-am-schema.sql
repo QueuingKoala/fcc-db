@@ -48,6 +48,7 @@ CREATE TABLE t_en (
 	po_box TEXT,
 	attn TEXT,
 	frn TEXT,
-	type_code TEXT
+	type_code TEXT,
+	district INT
 );
 

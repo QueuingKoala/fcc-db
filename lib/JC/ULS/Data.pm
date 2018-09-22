@@ -63,7 +63,8 @@ sub query_AM {
 				return 13 if ( $call =~ /^(AH|KH|NH|WH)/ );
 				return undef if ( $call =~ /^[AKNW]F[0-9]EMA$/ );
 				return undef if ( length($call) == 3 );
-				if ( $call =~ /^[[:alpha:]]+([0-9])[[:alpha:]]$/ ) {
+				if ( $call =~ /^[[:alpha:]]+([0-9])[[:alpha:]]+$/ ) {
+					return 10 if ($1 eq 0);
 					return $1;
 				}
 				return undef;
@@ -100,8 +101,32 @@ sub query_AM {
 sub query_EN {
 	my ($self, $table) = (@_);
 
+	my $exec_district = sub {
+		my ($row, $out) = (@_);
+		my $district = eval {
+			for my $state ( $row->[18-1] // "" ) {
+				return 1 if ( $state =~ /^(me|vt|nh|ma|ri|ct)$/i );
+				return 2 if ( $state =~ /^(ny|nj)$/i );
+				return 3 if ( $state =~ /^(pa|de|md|dc)$/i );
+				return 4 if ( $state =~ /^(ky|va|tn|nc|sc|ga|al|fl)$/i );
+				return 5 if ( $state =~ /^(nm|tx|ok|ar|la|ms)$/i );
+				return 6 if ( $state =~ /^ca$/i );
+				return 7 if ( $state =~ /^(wa|or|id|mt|wy|nv|ut|az)$/i );
+				return 8 if ( $state =~ /^(mi|oh|wv)$/i );
+				return 9 if ( $state =~ /^(wi|il|in)$/i );
+				return 10 if ( $state =~ /^(co|nd|sd|ne|ks|mn|ia|mo)$/i );
+				return 11 if ( $state =~ /^ak$/i );
+				return 12 if ( $state =~ /^(pr|vi)$/i );
+				return 13 if ( $state =~ /^(hi|as|gu|mp)$/i );
+				return undef;
+			}
+		};
+		push( @$out, $district);
+	};
+
 	$table->addQuery(
 		fields => [ 2..3, 5..12, 16..21, 23..24 ],
+		callbacks => [ $exec_district ],
 		sql => qq[
 			INSERT OR REPLACE INTO t_en (
 				sys_id,
@@ -121,9 +146,10 @@ sub query_EN {
 				po_box,
 				attn,
 				frn,
-				type_code
+				type_code,
+				district
 			)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		],
 	) or die "EN sth failed: " . $table->error;
 }

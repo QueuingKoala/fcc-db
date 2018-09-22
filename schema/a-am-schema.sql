@@ -38,7 +38,8 @@ CREATE TABLE t_am (
 	vanity_call_change TEXT,
 	previous_callsign TEXT,
 	previous_op_class TEXT,
-	trustee_name TEXT
+	trustee_name TEXT,
+	district INT
 );
 
 CREATE TABLE t_vc (
@@ -68,6 +69,7 @@ CREATE TABLE t_en (
 	po_box TEXT,
 	attn TEXT,
 	frn TEXT,
-	type_code TEXT
+	type_code TEXT,
+	district INT
 );
 
