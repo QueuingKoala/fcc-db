@@ -2,8 +2,8 @@ DROP VIEW IF EXISTS tmp_ivc;
 
 CREATE TEMP VIEW tmp_ivc AS
 SELECT
-	sys_id
-	,callsign
+	hd.sys_id
+	,hd.callsign
 	,license_status
 	,grant_date
 	,max(
@@ -16,22 +16,19 @@ SELECT
 		END
 	) AS end_date
 	,last_action_date
+	,am.district
 FROM
-	fcc.t_hd
+	fcc.t_hd hd
+	JOIN
+	fcc.t_am am
+		ON (hd.sys_id = am.sys_id)
 WHERE
-	length(callsign) = 4
-	AND callsign NOT LIKE 'AL%'
-	AND callsign NOT like 'KL%'
-	AND callsign NOT LIKE 'NL%'
-	AND callsign NOT LIKE 'WL%'
-	AND callsign NOT LIKE 'KP%'
-	AND callsign NOT LIKE 'NP%'
-	AND callsign NOT LIKE 'WP%'
-	AND callsign NOT LIKE 'AH%'
-	AND callsign NOT LIKE 'KH%'
-	AND callsign NOT LIKE 'NH%'
-	AND callsign NOT LIKE 'WH%'
+	length(hd.callsign) = 4
+	AND
+	am.district >= 1
+	AND
+	am.district <= 10
 GROUP BY
-	callsign
+	hd.callsign
 ;
 
