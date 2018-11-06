@@ -224,4 +224,25 @@ sub query_VC {
 	) or die "VC sth failed: " . $table->error;
 }
 
+sub query_HS {
+	my ($self, $table) = (@_);
+
+	$table->dateFields(
+		dates => [ 5 ],
+	) or die "HS dates failed: " . $table->error;
+
+	$table->addQuery(
+		fields => [ 2, 4..6 ],
+		sql => qq[
+			INSERT INTO t_hs (
+				sys_id,
+				callsign,
+				log_date,
+				code
+			)
+			VALUES (?,?,?,?)
+		],
+	) or die "HS sth failed: " . $table->error;
+}
+
 1;

@@ -101,15 +101,17 @@ call_import() {
 		pEN="$name/EN.data" \
 		pAM="$name/AM.data" \
 		pAD="$name/AD.data" \
-		pVC="$name/VC.data"
+		pVC="$name/VC.data" \
+		pHS="$name/HS.data"
 
-	local tHD="" tEN="" tAM="" tAD="" tVC=""
+	local tHD="" tEN="" tAM="" tAD="" tVC="" tHS=""
 
 	[ -r "$pHD" ] && tHD=1
 	[ -r "$pEN" ] && tEN=1
 	[ -r "$pAM" ] && tAM=1
 	[ -r "$pAD" ] && tAD=1
 	[ -r "$pVC" ] && tVC=1
+	[ -r "$pHS" ] && tHS=1
 
 	"$bin" -d "$db" --no-analyze "$@" \
 		${tHD:+--hd "$pHD"} \
@@ -117,6 +119,7 @@ call_import() {
 		${tAM:+--am "$pAM"} \
 		${tAD:+--ad "$pAD"} \
 		${tVC:+--vc "$pVC"} \
+		${tHS:+--hs "$pHS"} \
 		|| die "Import execute failed on: $name"
 
 	return 0

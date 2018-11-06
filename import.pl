@@ -63,6 +63,7 @@ sub main {
 		'en=s' => $opt_table,
 		'ad=s' => $opt_table,
 		'vc=s' => $opt_table,
+		'hs=s' => $opt_table,
 	) or die "Options error";
 
 	# Mandatory options:

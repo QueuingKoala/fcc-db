@@ -25,3 +25,7 @@ CREATE INDEX idx_en_callsign ON t_en (callsign);
 CREATE INDEX idx_en_state ON t_en (state)
 	WHERE state IS NOT NULL;
 
+-- t_hs
+CREATE INDEX idx_hs_sysid ON t_hs (sys_id);
+CREATE INDEX idx_hs_callsign ON t_hs (callsign);
+

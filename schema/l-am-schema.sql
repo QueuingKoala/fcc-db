@@ -52,3 +52,11 @@ CREATE TABLE t_en (
 	district INT
 );
 
+CREATE TABLE t_hs (
+	id INTEGER PRIMARY KEY,
+	sys_id INT NOT NULL,
+	callsign TEXT,
+	log_date TEXT,
+	code TEXT
+);
+
