@@ -162,20 +162,21 @@ sub query_AD {
 	) or die "HD dates failed: " . $table->error;
 
 	$table->addQuery(
-		fields => [ 2..3, 5..6, 11, 16..17, 19, 22 ],
+		fields => [ 2..3, 5..6, 9, 11, 16..17, 19, 22 ],
 		sql => qq[
 			INSERT OR REPLACE INTO t_ad (
 				sys_id,
 				uls_fileno,
 				purpose,
 				status,
+				source,
 				receipt_date,
 				orig_purpose,
 				waver_req,
 				has_attachment,
 				entry_date
 			)
-			VALUES (?,?,?,?,?,?,?,?,?)
+			VALUES (?,?,?,?,?,?,?,?,?,?)
 		],
 	) or die "AD sth failed: " . $table->error;
 }

@@ -18,6 +18,7 @@ CREATE TABLE t_ad (
 	uls_fileno TEXT,
 	purpose TEXT,
 	status TEXT,
+	source TEXT,
 	receipt_date TEXT,
 	orig_purpose TEXT,
 	waver_req TEXT,
