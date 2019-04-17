@@ -104,8 +104,8 @@ sub dateFields {
 	my $dates = $args{dates} # \@date_fields
 		or return $self->error("Missing required arg: 'dates'");
 
-	# Convert field numbers to array indexes (subtract 1):
-	grep { --$_ } @$dates;
+	# Convert field numbers to array indexes (subtract 1, except negatives):
+	grep { --$_ if ($_ > 0) } @$dates;
 
 	$self->{args}{date_fields} = $dates;
 	return 1;
@@ -159,7 +159,7 @@ sub import {
 		while (my $line = <$fh>) {
 			# Extract fields from record input:
 			chomp $line;
-			my @fields = split(/\|/, $line);
+			my @fields = split(/\|/, $line, -1);
 
 			# Normalize record fields:
 			#  * strip leading/trailing whitespace

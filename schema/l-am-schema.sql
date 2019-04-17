@@ -9,8 +9,10 @@ CREATE TABLE t_hd (
 	grant_date TEXT,
 	expired_date TEXT,
 	canceled_date TEXT,
+	convicted TEXT,
 	effective_date TEXT,
-	last_action_date TEXT
+	last_action_date TEXT,
+	name_change TEXT
 );
 
 CREATE TABLE t_am (

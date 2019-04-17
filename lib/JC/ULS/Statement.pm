@@ -31,8 +31,8 @@ sub new {
 	# Optional args:
 	$args{callbacks} = [] if (not exists $args{callbacks});
 
-	# Convert field numbers to array indexes (subtract 1):
-	grep { --$_ } @{$args{fields}};
+	# Convert field numbers to array indexes (subtract 1, except negatives):
+	grep { --$_ if ($_ > 0) } @{$args{fields}};
 
 	my $self = { %args };
 	bless $self, $class;

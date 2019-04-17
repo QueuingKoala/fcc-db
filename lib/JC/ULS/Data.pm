@@ -28,11 +28,11 @@ sub query_HD {
 	my ($self, $table) = (@_);
 
 	$table->dateFields(
-		dates => [ 8..10, 43..44 ],
+		dates => [ 8..10, -8, -7 ],
 	) or die "HD dates failed: " . $table->error;
 
 	$table->addQuery(
-		fields => [ 2..3, 5..10, 43..44 ],
+		fields => [ 2..3, 5..10, 19, -8, -7, -1 ],
 		sql => qq[
 			INSERT OR REPLACE INTO t_hd (
 				sys_id,
@@ -43,10 +43,12 @@ sub query_HD {
 				grant_date,
 				expired_date,
 				canceled_date,
+				convicted,
 				effective_date,
-				last_action_date
+				last_action_date,
+				name_change
 			)
-			VALUES (?,?,?,?,?,?,?,?,?,?)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 		],
 	) or die "HD sth failed: " . $table->error;
 }
