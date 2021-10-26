@@ -33,7 +33,7 @@ sub new {
 # $rcBool = $t->define(
 #	name => $display_name,		# Required, display name of table
 #	source => $file,		# Required, source file with records
-#	update => $bool,		# Required, indicates if we're updating
+#	new => $bool,			# Required, indicates initial DB load
 # );
 #
 # Updates $t->error on failure with cause.
@@ -46,7 +46,7 @@ sub define {
 	);
 
 	# Verify required args:
-	for (qw[ name update source ]) {
+	for (qw[ name new source ]) {
 		return $self->error("missing arg: $_") if (not exists $args{$_});
 	}
 
@@ -142,23 +142,26 @@ sub prepare {
 
 sub import {
 	my ($self, %args) = (@_);
-	my $dbh = $args{dbh};			# dbh handle
+	my $dbh = $args{dbh};	# dbh handle
+	my $io7z = $args{io7z};	# IO7z, the archive interface object
 
 	# Short names of object attribute:
-	my $update = $self->get('update');	# bool, if we're updating DB.
+	my $new = $self->get('new');		# bool, if new DB
 	my $statements = $self->{statements};	# \@statement_objects
 	my $callbacks = $self->{callbacks};	# \@callback_subrefs
-	my $src_file = $self->get('source');	# source input file
+	my $src_file = $self->get('source');	# source input filename
 	my $date_conv = $self->get('date_fields'); # array-ref of US date indexes
 	my $name = $self->get('name');		# short name of table (for display)
 
 	print(STDERR "Importing table $name: " );
 
 	eval {
-		open(my $fh, '<', $src_file) or die "Open '$src_file' failed: $!";
-		while (my $line = <$fh>) {
+		$io7z->extract( $src_file )
+			or die("Extract '$src_file' failed: ". $io7z->error());
+		my $nr = 0;
+		while ( defined(my $line = $io7z->readline()) ) {
+			++$nr;
 			# Extract fields from record input:
-			chomp $line;
 			my @fields = split(/\|/, $line, -1);
 
 			# Normalize record fields:
@@ -183,23 +186,25 @@ sub import {
 		}
 		continue {
 			# Commit every 100k:
-			if (not $update and $. % 100000 == 0) {
-				$dbh->commit;
+			if ($new and $nr % 100000 == 0) {
+				$dbh->commit();
 			}
 			# Display progress every 250k:
-			if ($. % 250000 == 0) {
-				printf(STDERR "%dk.. ", $. / 1000);
+			if ($nr % 250000 == 0) {
+				printf(STDERR "%dk.. ", $nr / 1000);
 			}
 		}
 
-		printf(STDERR "%d.\n", $.);
+		printf(STDERR "%d.\n", $nr);
 
-		close($fh);
-		$dbh->commit if (not $update);
+		if ( not defined(my $rc = $io7z->close()) ) {
+			die("Archive extract terminated: " . $io7z->error());
+		}
+		$dbh->commit() if ($new);
 	};
 	if ($@) {
 		my $err = "$@";
-		eval { $dbh->rollback; };
+		eval { $dbh->rollback(); };
 		Carp::confess( "Import error: $err" );
 	}
 

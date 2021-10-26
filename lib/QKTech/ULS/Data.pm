@@ -189,7 +189,7 @@ sub query_VC {
 	# When updating, initial duplicate sys_id rows must first be removed.
 	# These are part of the composite PK which may not always be replaced.
 
-	if ( $table->get('update') ) {
+	if ( not $table->get('new') ) {
 		$table->addQuery(
 			fields => [ 2, 2 ],
 			sql => qq[
