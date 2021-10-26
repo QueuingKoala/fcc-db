@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Getopt::Long ();
 use DBI ();
-#use Data::Dumper qw(Dumper);
+Getopt::Long::Configure(qw[ bundling ]);
 
 BEGIN {
 	require File::Spec;
@@ -67,7 +67,7 @@ sub parse_options {
 		local @Config::IniFiles::errors; # surpress 'only used once' warning
 		my $cfg = Config::IniFiles->new( -file => $conf )
 			or fatal("INI parse error(s):", @Config::IniFiles::errors);
-		for (qw[ new database schema indexes ]) {
+		for (qw[ new db schema indexes ]) {
 			my $val = $cfg->val('config', $_);
 			$Opts->{$_} = $val if (defined $val);
 		}
@@ -83,6 +83,7 @@ sub parse_options {
 	) or die( "Options error" );
 
 	if ($Opts->{new}) {
+		(defined $Opts->{db}) or fatal("Missing --db file");
 		(defined $Opts->{schema}) or fatal("Missing --schema file");
 		(defined $Opts->{indexes}) or fatal("Missing --indexes file");
 		if (-f $Opts->{db}) {
