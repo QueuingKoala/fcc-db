@@ -11,8 +11,8 @@ BEGIN {
 	my ($vol, $dir) = File::Spec->splitpath($0);
 	unshift @INC, File::Spec->catdir($dir, 'lib');
 };
-use JC::ULS::Data ();
-use JC::ULS::Table ();
+use QKTech::ULS::Data ();
+use QKTech::ULS::Table ();
 
 main(\@ARGV);
 exit(0);
@@ -34,11 +34,11 @@ sub main {
 		my $name = uc($opt);
 
 		# SQL statement data encapsulation object:
-		my $data = JC::ULS::Data->new;
+		my $data = QKTech::ULS::Data->new;
 		my $meth = $data->can("query_$name")
 			or die "No support for table type: $name";
 
-		my $table = JC::ULS::Table->new;
+		my $table = QKTech::ULS::Table->new;
 		$table->define(
 			name => $name,
 			source => $src,

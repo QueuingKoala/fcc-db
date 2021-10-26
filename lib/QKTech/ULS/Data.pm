@@ -1,4 +1,4 @@
-package JC::ULS::Data;
+package QKTech::ULS::Data;
 
 use strict;
 use warnings;

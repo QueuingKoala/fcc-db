@@ -1,10 +1,10 @@
-package JC::ULS::Table;
+package QKTech::ULS::Table;
 
 use strict;
 use warnings;
 use Carp ();
 #use Data::Dumper qw(Dumper);
-use JC::ULS::Statement ();
+use QKTech::ULS::Statement ();
 
 # --
 # Class-scoped vars
@@ -69,7 +69,7 @@ sub addQuery {
 		return $self->error("missing arg: $_") if (not exists $args{$_});
 	}
 
-	my $st = JC::ULS::Statement->new( %args )
+	my $st = QKTech::ULS::Statement->new( %args )
 		or return $self->error("statement object failed create");
 
 	my $statements = $self->{statements}; # \@statements

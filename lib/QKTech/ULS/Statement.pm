@@ -1,4 +1,4 @@
-package JC::ULS::Statement;
+package QKTech::ULS::Statement;
 
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ use warnings;
 # Constructors
 # --
 
-# my $st = JC::ULS::Statement->(
+# my $st = QKTech::ULS::Statement->(
 #	fields => \@field_indexes,
 #	sql => $sql_statement,
 #	[ callbacks => \@callback_coderefs, ]
