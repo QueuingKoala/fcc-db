@@ -1,5 +1,11 @@
 #!/usr/bin/env perl
 
+# This file is part of the fcc-db ULS Amateur import project.
+#
+# Copyright 2016-2021, Josh Cepek
+#
+# This project is available under the GPLv3 license: see LICENSE.md.
+
 use strict;
 use warnings;
 use Getopt::Long ();

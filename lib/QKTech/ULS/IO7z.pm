@@ -1,5 +1,11 @@
 package QKTech::ULS::IO7z v0.1.0;
 
+# This file is part of the fcc-db ULS Amateur import project.
+#
+# Copyright 2021, Josh Cepek
+#
+# This project is available under the GPLv3 license: see LICENSE.md.
+
 use strict;
 use warnings;
 use Carp ();
