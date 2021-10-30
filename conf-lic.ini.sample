@@ -1,0 +1,11 @@
+[config]
+
+# Uncomment and set this path for the database:
+#db=/usr/local/var/db/uls-lic.sqlite
+
+# Schema file location: (set absolute paths for PWD-flexible use)
+schema=schema/a-am-schema.sql
+
+# Index file location: (set absolute paths for PWD-flexible use)
+indexes=schema/a-am-indexes.sql
+
