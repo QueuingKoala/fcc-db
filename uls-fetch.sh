@@ -133,6 +133,7 @@ main() {
 
 		al_type="${fn#*_}"
 		al_type="${al_type%%_*}"
+		al_type="${al_type%%.info}"
 		kind="${fn%%_*}"
 		if [ "$kind" = "weekly" ]; then
 			args="$args -W $al_type"
