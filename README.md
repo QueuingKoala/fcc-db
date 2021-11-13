@@ -31,10 +31,11 @@ downloaded more recently than the latest weekly to feed to the importer.
 
 On Debian-based systems, install the following packages:
 
-* `p7zip`
+* `curl`
+* `libconfig-inifiles-perl`
 * `libdbd-sqlite3-perl`
 * `libdbi-perl`
-* `curl`
+* `p7zip-full`
 
 ## First-use prep
 
