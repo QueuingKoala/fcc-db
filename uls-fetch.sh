@@ -180,11 +180,12 @@ main() {
 
 # last_mod() - extract Last-Modified transfer-header from file
 
-last_mod() { grep -E '^Last-Modified: ' "$1"; }
+last_mod() { grep -i -E '^Last-Modified: ' "$1"; }
 
 uls_fetch() {
 	local info="" outs="" urls=""
-	local uri_base="ftp://wirelessftp.fcc.gov/pub/uls"
+	#local uri_base="ftp://wirelessftp.fcc.gov/pub/uls"
+	local uri_base="https://data.fcc.gov/download/pub/uls/"
 
 	local status="%{filename_effective} %{size_download} %{speed_download} %{url_effective}\n"
 	local ext=zip
