@@ -29,6 +29,14 @@ downloaded more recently than the latest weekly to feed to the importer.
 * DBI
 * DBD::SQLite
 
+On Debian-based systems, install the following packages:
+
+* `curl`
+* `libconfig-inifiles-perl`
+* `libdbd-sqlite3-perl`
+* `libdbi-perl`
+* `p7zip-full`
+
 ## First-use prep
 
 uls-fetch.sh is what downloads ULS archives, both initially and to check for
